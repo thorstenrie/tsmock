@@ -56,6 +56,9 @@ func (stdin *MockStdin) Err() error {
 }
 
 func (stdin *MockStdin) Set(in *os.File) error {
+	if in == nil {
+		return tserr.NilPtr()
+	}
 	stdin.Restore()
 	stdin.r, stdin.w, stdin.e = os.Pipe()
 	if (stdin.e != nil) || (stdin.w == nil) || (stdin.r == nil) {
