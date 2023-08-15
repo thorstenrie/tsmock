@@ -3,16 +3,17 @@
 // that can be found in the LICENSE file.
 package tsmock_test
 
+// Import go standard library packages as well as tserr, tsfio and tsmock
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"testing"
-	"time"
+	"bufio"   // bufio
+	"fmt"     // fmt
+	"os"      // os
+	"testing" // testing
+	"time"    // time
 
-	"github.com/thorstenrie/tserr"
-	"github.com/thorstenrie/tsfio"
-	"github.com/thorstenrie/tsmock"
+	"github.com/thorstenrie/tserr"  // tserr
+	"github.com/thorstenrie/tsfio"  // tsfio
+	"github.com/thorstenrie/tsmock" // tsmock
 )
 
 var (
@@ -56,7 +57,7 @@ func testStdin(v bool, t *testing.T) {
 	if e := tsmock.Stdin.Err(); err != nil {
 		t.Error(tserr.Return(&tserr.ReturnArgs{Op: "Err", Actual: fmt.Sprint(e), Want: "nil"}))
 	}
-	if test != sref {
+	if tsfio.NormNewlinesStr(test) != tsfio.NormNewlinesStr(sref) {
 		t.Error(tserr.EqualStr(&tserr.EqualStrArgs{Var: string(testfile), Want: sref, Actual: test}))
 	}
 	tsmock.Stdin.Restore()
