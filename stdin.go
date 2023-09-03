@@ -6,8 +6,9 @@ package tsmock
 // Import go standard library packages and tserr
 import (
 	"bufio" // bufio
-	"fmt"   // fmt
-	"os"    // os
+	"context"
+	"fmt" // fmt
+	"os"  // os
 	"sync"
 	"time" // time
 
@@ -21,7 +22,8 @@ type MockStdin struct {
 	e           error                       // Error, if any
 	d           SafeVariable[time.Duration] // Time delay in reading input
 	v           SafeVariable[bool]          // Visibility of input
-	muRestore   sync.Mutex                  // Lock mocked Stdin for restore
+	cancel      context.CancelFunc
+	wg          sync.WaitGroup
 }
 
 var (
@@ -35,7 +37,13 @@ func NewStdin() *MockStdin {
 	return r
 }
 
-func (stdin *MockStdin) restore_unsafe() error {
+// Restore restores the original os.Stdin. It returns the last occurring error, if any.
+func (stdin *MockStdin) Restore() error {
+	if stdin.cancel != nil {
+		stdin.cancel()
+		stdin.cancel = nil
+	}
+	stdin.wg.Wait()
 	// Close read file descriptor, if not nil
 	if stdin.r != nil {
 		stdin.e = stdin.r.Close()
@@ -54,16 +62,6 @@ func (stdin *MockStdin) restore_unsafe() error {
 	os.Stdin = stdin.o
 	// Return an error, if any
 	return stdin.e
-}
-
-// Restore restores the original os.Stdin. It returns the last occurring error, if any.
-func (stdin *MockStdin) Restore() error {
-	// Lock mocked Stdin
-	stdin.muRestore.Lock()
-	// Defer unlock of Stdin
-	defer stdin.muRestore.Unlock()
-	// Return error from restore_unsafe, if any
-	return stdin.restore_unsafe()
 }
 
 // Delay sets a time delay d for the mocked Stdin. If d is set to a value higher than zero, each line input to the mocked Stdin will be delayed by
@@ -89,10 +87,6 @@ func (stdin *MockStdin) Visibility(v bool) {
 
 // Err returns the last occurring error, if any. It is blocked until writing to the mocked Stdin is completed.
 func (stdin *MockStdin) Err() error {
-	// Lock mocked Stdin
-	stdin.muRestore.Lock()
-	// Defer unlock of Stdin
-	defer stdin.muRestore.Unlock()
 	// Return las occurring error, if any
 	return stdin.e
 }
@@ -105,27 +99,39 @@ func (stdin *MockStdin) Set(in *os.File) error {
 	if in == nil {
 		return tserr.NilPtr()
 	}
-	// Lock mocked Stdin
-	stdin.muRestore.Lock()
-	stdin.restore_unsafe()
+	stdin.Restore()
 	stdin.r, stdin.w, stdin.e = os.Pipe()
 	if (stdin.e != nil) || (stdin.w == nil) || (stdin.r == nil) {
-		stdin.restore_unsafe()
-		stdin.muRestore.Unlock()
+		stdin.Restore()
 		return tserr.NotAvailable(&tserr.NotAvailableArgs{S: "os.Pipe", Err: stdin.e})
 	}
 	stdin.in = in
 	os.Stdin = stdin.r
-	// Note: Stdin will be unlocked by write!
-	go stdin.write()
 	return nil
 }
 
-func (stdin *MockStdin) write() {
-	// Defer unlock of stdin.muRestore
-	defer stdin.muRestore.Unlock()
+func (stdin *MockStdin) Run(ctx context.Context) {
+	ctx, stdin.cancel = context.WithCancel(ctx)
+	stdin.wg.Add(1)
+	go stdin.write(ctx)
+
+}
+
+func (stdin *MockStdin) write(ctx context.Context) {
+	defer stdin.w.Close() // Todo: Add error handling
+	defer stdin.wg.Done()
 	s := bufio.NewScanner(stdin.in)
+	br := false
 	for s.Scan() {
+		select {
+		case <-ctx.Done():
+			// Break outer loop
+			br = true
+		default:
+		}
+		if br {
+			break
+		}
 		i := s.Text() + "\n"
 		_, err := stdin.w.WriteString(i)
 		if err != nil {
@@ -137,5 +143,4 @@ func (stdin *MockStdin) write() {
 		}
 		time.Sleep(stdin.d.Get())
 	}
-	stdin.w.Close()
 }

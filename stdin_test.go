@@ -5,9 +5,6 @@ package tsmock_test
 
 // Import go standard library packages as well as tserr, tsfio and tsmock
 import (
-	"bufio"   // bufio
-	"fmt"     // fmt
-	"os"      // os
 	"testing" // testing
 	"time"    // time
 
@@ -21,46 +18,11 @@ var (
 )
 
 func TestStdinV(t *testing.T) {
-	testStdin(true, t)
+	testStdin(true, 250*time.Millisecond, t)
 }
 
 func TestStdinI(t *testing.T) {
-	testStdin(false, t)
-}
-
-func testStdin(v bool, t *testing.T) {
-	if t == nil {
-		panic(tserr.NilPtr())
-	}
-	ref, err := tsfio.ReadFile(testfile)
-	if err != nil {
-		t.Error(tserr.Op(&tserr.OpArgs{Op: "ReadFile", Fn: string(testfile), Err: err}))
-	}
-	fs, err := tsfio.OpenFile(testfile)
-	if err != nil {
-		t.Error(tserr.Op(&tserr.OpArgs{Op: "OpenFile", Fn: string(testfile), Err: err}))
-	}
-	sref := string(ref)
-	test := ""
-	defer fs.Close()
-	if e := tsmock.Stdin.Delay(time.Millisecond); e != nil {
-		t.Error(tserr.Op(&tserr.OpArgs{Op: "Delay", Fn: "Stdin", Err: e}))
-	}
-	tsmock.Stdin.Visibility(v)
-	if e := tsmock.Stdin.Set(fs); e != nil {
-		t.Error(tserr.Op(&tserr.OpArgs{Op: "Set", Fn: string(testfile), Err: e}))
-	}
-	s := bufio.NewScanner(os.Stdin)
-	for s.Scan() {
-		test += s.Text() + "\n"
-	}
-	if e := tsmock.Stdin.Err(); err != nil {
-		t.Error(tserr.Return(&tserr.ReturnArgs{Op: "Err", Actual: fmt.Sprint(e), Want: "nil"}))
-	}
-	if tsfio.NormNewlinesStr(test) != tsfio.NormNewlinesStr(sref) {
-		t.Error(tserr.EqualStr(&tserr.EqualStrArgs{Var: string(testfile), Want: sref, Actual: test}))
-	}
-	tsmock.Stdin.Restore()
+	testStdin(false, 250*time.Millisecond, t)
 }
 
 func TestNegativeDelay(t *testing.T) {
