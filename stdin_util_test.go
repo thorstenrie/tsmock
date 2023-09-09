@@ -19,8 +19,8 @@ import (
 
 // testStdin tests Stdin with the test file with visibility set to v and input delay to d. It will take the contents of the
 // test file as reference string and as input to stdin. If the contents received from stdin does not equal
-// the contents of the test file the test fails. Also, the test fails in case of an error.
-func testStdin(v bool, d time.Duration, t *testing.T) {
+// the contents of the test file the test returns an error. Also, the test fails in case of an error.
+func testStdin(ctx context.Context, v bool, d time.Duration, t *testing.T) error {
 	// Panic if t is nil
 	if t == nil {
 		panic(tserr.NilPtr())
@@ -32,12 +32,18 @@ func testStdin(v bool, d time.Duration, t *testing.T) {
 	// Defer closing the retrieved file.
 	defer fs.Close()
 	// Mock Stdin
-	tsmock.Stdin.Run(context.Background())
+	if e := tsmock.Stdin.Run(ctx); e != nil {
+		// The test returns an error if Run fails
+		return e
+	}
 	// Scan stdin and compare the retrieved text with the reference string ref.
-	// The test fails if the retrieved text does not equal the reference string ref.
-	testStdinEval(ref, t)
+	if e := testStdinEval(ref, t); e != nil {
+		// The test returns an error if the retrieved text does not equal the reference string ref.
+		return e
+	}
 	// Restore Stdin. The test fails if Stdin has an error in Err.
 	testStdinClose(t)
+	return nil
 }
 
 // testStdinSetup reads reference data and opens a stdin test input file for testing. Visibility of
@@ -80,7 +86,7 @@ func testStdinSetup(v bool, d time.Duration, t *testing.T) (string, *os.File) {
 
 // testStdinEval scans stdin and compares retrieved text with the reference string ref.
 // The test fails if the retrieved text does not equal the reference string ref.
-func testStdinEval(ref string, t *testing.T) {
+func testStdinEval(ref string, t *testing.T) error {
 	// Panic if t is nil
 	if t == nil {
 		panic(tserr.NilPtr())
@@ -95,8 +101,9 @@ func testStdinEval(ref string, t *testing.T) {
 	}
 	// The test fails if the retrieved text does not equal to the reference string ref
 	if tsfio.NormNewlinesStr(test) != tsfio.NormNewlinesStr(ref) {
-		t.Error(tserr.EqualStr(&tserr.EqualStrArgs{Var: string(testfile), Want: ref, Actual: test}))
+		return tserr.EqualStr(&tserr.EqualStrArgs{Var: string(testfile), Want: ref, Actual: test})
 	}
+	return nil
 }
 
 // testStdinClose restores the stdin. The test fails if Stdin has an error in Err.
