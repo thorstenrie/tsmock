@@ -53,6 +53,54 @@ func TestStdinTimeout(t *testing.T) {
 	}
 }
 
+// TestStdinRestore tests Restore to cancel a running execution of a mocked Stdin. The test fails
+// if Restore returns an error of Stdin has an error in Err.
+func TestStdinRestore(t *testing.T) {
+	// Read reference data and open a stdin test input file for testing.
+	// Visibility of the input is set to v. The input delay is set to d.
+	// The input file of stdin is set to the stdin test input file
+	_, fs := testStdinSetup(true, testdelay, t)
+	// Defer closing the retrieved file.
+	defer fs.Close()
+	// Mock Stdin
+	if e := tsmock.Stdin.Run(context.Background()); e != nil {
+		// The test fails if Run returns an error
+		t.Error(tserr.Op(&tserr.OpArgs{Op: "Run", Fn: "Stdin", Err: e}))
+	}
+	if e := tsmock.Stdin.Restore(); e != nil {
+		// The test fails if Restore returns an error
+		t.Error(tserr.Op(&tserr.OpArgs{Op: "Restore", Fn: "Stdin", Err: e}))
+	}
+	// The test fails if Stdin has an error in Err
+	if e := tsmock.Stdin.Err(); e != nil {
+		t.Error(tserr.Op(&tserr.OpArgs{Op: "Err", Fn: "Mocked Stdin", Err: e}))
+	}
+}
+
+// TestStdinSet tests Set to return an error, when used while a mocked Stdin is executing.
+// The test fails if Set returns nil or Stdin has an error in Err.
+func TestStdinSet(t *testing.T) {
+	// Read reference data and open a stdin test input file for testing.
+	// Visibility of the input is set to v. The input delay is set to d.
+	// The input file of stdin is set to the stdin test input file
+	_, fs := testStdinSetup(true, testdelay, t)
+	// Defer closing the retrieved file.
+	defer fs.Close()
+	// Mock Stdin
+	if e := tsmock.Stdin.Run(context.Background()); e != nil {
+		// The test fails if Run returns an error
+		t.Error(tserr.Op(&tserr.OpArgs{Op: "Run", Fn: "Stdin", Err: e}))
+	}
+	if e := tsmock.Stdin.Set(fs); e == nil {
+		// The test fails if Set returns nil
+		t.Error(tserr.NilFailed("Set"))
+	}
+	// The test fails if Stdin has an error in Err
+	if e := tsmock.Stdin.Err(); e != nil {
+		t.Error(tserr.Op(&tserr.OpArgs{Op: "Err", Fn: "Mocked Stdin", Err: e}))
+	}
+}
+
 // TestNegativeDelay tests if Delay returns an error in case of a negative value. The test
 // fails if Delay returns nil.
 func TestNegativeDelay(t *testing.T) {

@@ -146,6 +146,8 @@ func (stdin *MockStdin) Run(ctx context.Context) error {
 	}
 	// Add to waitgroup
 	stdin.wg.Add(1)
+	// Set execution to true
+	stdin.s.Set(true)
 	// Retrieve a child context and a cancel function
 	ctx, stdin.cancel = context.WithCancel(ctx)
 	// Execute mocked Stdin

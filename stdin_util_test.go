@@ -7,7 +7,7 @@ package tsmock_test
 import (
 	"bufio"   // bufio
 	"context" // context
-	"fmt"     // fmt
+	// fmt
 	"os"      // os
 	"testing" // testing
 	"time"    // time
@@ -71,7 +71,6 @@ func testStdinSetup(v bool, d time.Duration, t *testing.T) (string, *os.File) {
 	if e := tsmock.Stdin.Set(fs); e != nil {
 		// The test fails if Set returns an error
 		t.Error(tserr.Op(&tserr.OpArgs{Op: "Set", Fn: string(testfile), Err: e}))
-
 	}
 	// Set visibility of stdin to v
 	tsmock.Stdin.Visibility(v)
@@ -114,7 +113,7 @@ func testStdinClose(t *testing.T) {
 	}
 	// The test fails if Stdin has an error in Err
 	if e := tsmock.Stdin.Err(); e != nil {
-		t.Error(tserr.Return(&tserr.ReturnArgs{Op: "Err", Actual: fmt.Sprint(e), Want: "nil"}))
+		t.Error(tserr.Op(&tserr.OpArgs{Op: "Err", Fn: "Mocked Stdin", Err: e}))
 	}
 	// Restore Stdin
 	if e := tsmock.Stdin.Restore(); e != nil {
