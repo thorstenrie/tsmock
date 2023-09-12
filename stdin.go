@@ -1,3 +1,8 @@
+// Package tsmock provides an interface to test and mock Stdin based on files. It reads input
+// from a file and passes it to os.Stdin. It can be configured to set the visibility
+// of the input and a delay in processing each line of the input from the file. The mocked Stdin
+// is executed in a go routine and can be canceled with a context.
+//
 // Copyright (c) 2023 thorstenrie.
 // All Rights Reserved. Use is governed with GNU Affero General Public License v3.0
 // that can be found in the LICENSE file.
