@@ -23,3 +23,22 @@ input from the file. The mocked Stdin is executed in a Go routine and can be can
 - **Easy to use**: Retrieve Stdin input from [os.Stdin](https://pkg.go.dev/os)
 - **Tested**: Unit tests with a high code coverage
 - **Dependencies**: Only depends on the [Go Standard Library](https://pkg.go.dev/std) as well as [tsfio](https://github.com/thorstenrie/tsfio) and [tserr](https://github.com/thorstenrie/tserr)
+
+## Usage
+
+The package is installed with 
+
+````go
+go get github.com/thorstenrie/tsmock
+````
+
+In the Go app, the package is imported with
+
+````go
+import "github.com/thorstenrie/tsmock"
+````
+
+## Mock Stdin
+
+## Example
+
