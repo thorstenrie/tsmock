@@ -126,3 +126,12 @@ func main() {
 ```
 [Go Playground](https://go.dev/play/p/nfksVqPNaCj)
 
+## Links
+
+[Godoc](https://pkg.go.dev/github.com/thorstenrie/tsmock)
+
+[Go Report Card](https://goreportcard.com/report/github.com/thorstenrie/tsmock)
+
+[Open Source Insights](https://deps.dev/go/github.com%2Fthorstenrie%2Ftsmock)
+
+
