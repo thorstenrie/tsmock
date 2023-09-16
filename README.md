@@ -15,8 +15,8 @@
 ![GitHub Top Language](https://img.shields.io/github/languages/top/thorstenrie/tsmock)
 ![GitHub](https://img.shields.io/github/license/thorstenrie/tsmock)
 
-The Go package tsmock provides an interface to test and mock Stdin based on files. It reads input from a file and
-passes it to os.Stdin. It can be configured to set the visibility of the input and a delay in processing each line of the
+The Go package tsmock provides an interface to test and mock Stdin based on files. The package enables testing of interactive console applications. It reads input from a file and
+passes it to `os.Stdin`. It can be configured to set the visibility of the input and a delay in processing each line of the
 input from the file. The mocked Stdin is executed in a Go routine and can be canceled with a context.
 
 - **Simple**: Without configuration, just function calls
@@ -40,5 +40,85 @@ import "github.com/thorstenrie/tsmock"
 
 ## Mock Stdin
 
+The global mocked Stdin is provided by `tsmock.Stdin`
+
+```go
+stdin := tsmock.Stdin
+```
+
+The variable of type `*os.File` for the input to Stdin is set with `Set`
+
+```go
+err := stdin.Set(f)
+```
+
+Visibility of the input and a delay of processing each line of the input can be configured with `Visibility` and `Delay`
+
+```go
+stdin.Visibility(false)
+err := stdin.Delay(time.Milliseconds * 250)
+```
+
+The mocked stdin is executed with `Run`.
+
+```go
+err := stdin.Run(context.Background())
+```
+
+The `context` can be used to cancel the execution, for example with a timeout.
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+defer cancel()
+err := stdin.Run(ctx)
+```
+
+The input can be retrieved with `os.Stdin`
+
+```go
+s := bufio.NewScanner(os.Stdin)
+for s.Scan() {
+  fmt.Println(s.Text())
+}
+```
+
 ## Example
+
+```go
+package main
+
+import (
+	"bufio"
+	"context"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/thorstenrie/tsfio"
+	"github.com/thorstenrie/tsmock"
+)
+
+var (
+	filename = tsfio.Filename("test.txt")
+	contents = "Aragorn\nGandalf\nGimli\nLegolas\nGollum\n"
+)
+
+func main() {
+	tsfio.WriteStr(filename, contents)
+	f, _ := tsfio.OpenFile(filename)
+	stdin := tsmock.Stdin
+	stdin.Set(f)
+	stdin.Visibility(false)
+	stdin.Delay(time.Millisecond * 250)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	stdin.Run(ctx)
+	s := bufio.NewScanner(os.Stdin)
+	for s.Scan() {
+		fmt.Println(s.Text())
+	}
+	tsfio.RemoveFile(filename)
+}
+```
+[Go Playground](https://go.dev/play/p/c83SOLA4cKc)
 
