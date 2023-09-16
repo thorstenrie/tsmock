@@ -20,16 +20,17 @@ import (
 	"github.com/thorstenrie/tserr" // tserr
 )
 
-// MockStdin cointains the internal state of a mocked Stdin. It holds variables for file descriptors, a time delay, an option for visibility and an error, if any.
-// It stores a context cancel function and a sync waitgroup. Users of the mocked Stdin are expected to use the globally exported instance tsmock.Stdin.
+// MockStdin contains the internal state of a mocked Stdin. It holds variables for file descriptors, a time delay, an option for visibility and an error, if any.
+// It stores a context cancel function and a sync wait group. Users of the mocked Stdin are expected to use the globally exported instance tsmock.Stdin.
 type MockStdin struct {
 	in, r, w, o *os.File                    // input, pipe and original Stdin file descriptors
 	e           SafeVariable[error]         // Error, if any
 	d           SafeVariable[time.Duration] // Time delay in reading input
 	v           SafeVariable[bool]          // Visibility of input
-	s           SafeVariable[bool]          // True if executing, false otherwise
+	run         SafeVariable[bool]          // True if executing, false otherwise
+	set         SafeVariable[bool]          // True if pip is set, false otherwise
 	cancel      context.CancelFunc          // Context cancel function
-	wg          sync.WaitGroup              // Sync waitgroup
+	wg          sync.WaitGroup              // Sync wait group
 }
 
 var (
@@ -44,26 +45,15 @@ func newStdin() *MockStdin {
 	// Set visibility of stdin to true
 	r.v.Set(true)
 	// Mocked stdin is not executing
-	r.s.Set(false)
+	r.run.Set(false)
+	// Mocked stdin is not set
+	r.set.Set(false)
 	// Return the new instance
 	return r
 }
 
-// Restore restores the original os.Stdin. It cancels current execution of the mocked stdin and returns the last occurring error, if any.
-func (stdin *MockStdin) Restore() error {
-	// Cancel the current execution of the mocked Stdin, if execution is running
-	if stdin.s.Get() {
-		// Return an error if cancel function is nil
-		if stdin.cancel == nil {
-			return tserr.NilPtr()
-		}
-		// Cancel stdin execution
-		stdin.cancel()
-		// Set cancel function to nil
-		stdin.cancel = nil
-	}
-	// Wait for the execution of the mocked stdin to be stopped
-	stdin.wg.Wait()
+// closePipe closes the pipe, if existing.
+func (stdin *MockStdin) closePipe() {
 	// Close read file descriptor, if not nil
 	if stdin.r != nil {
 		stdin.r.Close()
@@ -78,10 +68,31 @@ func (stdin *MockStdin) Restore() error {
 	}
 	// Set the file descriptors to nil
 	stdin.w, stdin.r, stdin.in = nil, nil, nil
+}
+
+// Restore restores the original os.Stdin. It cancels current execution of the mocked stdin and returns the last occurring error, if any.
+func (stdin *MockStdin) Restore() error {
+	// Cancel the current execution of the mocked Stdin, if execution is running
+	if stdin.run.Get() {
+		// Return an error if cancel function is nil
+		if stdin.cancel == nil {
+			return tserr.NilPtr()
+		}
+		// Cancel stdin execution
+		stdin.cancel()
+		// Set cancel function to nil
+		stdin.cancel = nil
+	}
+	// Wait for the execution of the mocked stdin to be stopped
+	stdin.wg.Wait()
+	// Close existing pipe, if existing
+	stdin.closePipe()
 	// Restore os.Stdin to original os.Stdin
 	os.Stdin = stdin.o
 	// Set mocked stdin execution to false
-	stdin.s.Set(false)
+	stdin.run.Set(false)
+	// Set mocked stdin to not set
+	stdin.set.Set(false)
 	// Return an error, if any
 	return stdin.e.Get()
 }
@@ -120,9 +131,11 @@ func (stdin *MockStdin) Set(in *os.File) error {
 		return tserr.NilPtr()
 	}
 	// Return an error if mocked Stdin is executing
-	if stdin.s.Get() {
+	if stdin.run.Get() {
 		return tserr.Locked("Mocked Stdin")
 	}
+	// Close existing pipe, if existing
+	stdin.closePipe()
 	// Retrieve a new pipe
 	var e error
 	stdin.r, stdin.w, e = os.Pipe()
@@ -135,6 +148,8 @@ func (stdin *MockStdin) Set(in *os.File) error {
 	stdin.in = in
 	// Set os.Stdin to pipe
 	os.Stdin = stdin.r
+	// Set mocked stdin to set
+	stdin.set.Set(true)
 	// Return nil
 	return nil
 }
@@ -146,13 +161,17 @@ func (stdin *MockStdin) Set(in *os.File) error {
 // It returns an error if the mocked Stdin is already executing.
 func (stdin *MockStdin) Run(ctx context.Context) error {
 	// Return an error if the mocked Stdin is already executing
-	if stdin.s.Get() {
+	if stdin.run.Get() {
 		return tserr.Locked("Mocked Stdin")
+	}
+	// Return an error if the mocked Stdin is not set
+	if !stdin.set.Get() {
+		return tserr.NotSet("Mocked Stdin")
 	}
 	// Add to waitgroup
 	stdin.wg.Add(1)
 	// Set execution to true
-	stdin.s.Set(true)
+	stdin.run.Set(true)
 	// Retrieve a child context and a cancel function
 	ctx, stdin.cancel = context.WithCancel(ctx)
 	// Execute mocked Stdin
@@ -166,7 +185,7 @@ func (stdin *MockStdin) write(ctx context.Context) {
 	// Set waitgroup to done after execution finished
 	defer stdin.wg.Done()
 	// Set execution to false after execution finished
-	defer stdin.s.Set(false)
+	defer stdin.run.Set(false)
 	// Set an error and stop execution if w is nil
 	if stdin.w == nil {
 		stdin.e.Set(tserr.NilPtr())

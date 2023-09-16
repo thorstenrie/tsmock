@@ -7,6 +7,7 @@ package tsmock_test
 import (
 	"bufio"   // bufio
 	"context" // context
+
 	// fmt
 	"os"      // os
 	"testing" // testing
@@ -31,6 +32,8 @@ func testStdin(ctx context.Context, v bool, d time.Duration, t *testing.T) error
 	ref, fs := testStdinSetup(v, d, t)
 	// Defer closing the retrieved file.
 	defer fs.Close()
+	// Defer restoring Stdin. The test fails if Stdin has an error in Err.
+	defer testStdinClose(t)
 	// Mock Stdin
 	if e := tsmock.Stdin.Run(ctx); e != nil {
 		// The test returns an error if Run fails
@@ -41,8 +44,6 @@ func testStdin(ctx context.Context, v bool, d time.Duration, t *testing.T) error
 		// The test returns an error if the retrieved text does not equal the reference string ref.
 		return e
 	}
-	// Restore Stdin. The test fails if Stdin has an error in Err.
-	testStdinClose(t)
 	return nil
 }
 
@@ -55,13 +56,11 @@ func testStdinSetup(v bool, d time.Duration, t *testing.T) (string, *os.File) {
 	if t == nil {
 		panic(tserr.NilPtr())
 	}
-	// Retrieve reference data from test file as slice of bytes
-	ref, err := tsfio.ReadFile(testfile)
-	// The test fails if ReadFile returns an error
-	if err != nil {
-		t.Error(tserr.Op(&tserr.OpArgs{Op: "ReadFile", Fn: string(testfile), Err: err}))
-	}
-	// Open testfile
+	// Write the contents of the testfile to the testfile
+	tsfio.WriteSingleStr(testfile, contents)
+	// Retrieve reference data from test file contents
+	ref := contents
+	// Open the testfile
 	fs, err := tsfio.OpenFile(testfile)
 	// The test fails if OpenFile returns an error
 	if err != nil {
@@ -119,5 +118,9 @@ func testStdinClose(t *testing.T) {
 	if e := tsmock.Stdin.Restore(); e != nil {
 		// The test fails if Restore returns an error
 		t.Error(tserr.Op(&tserr.OpArgs{Op: "Restore", Fn: "tsmock.Stdin", Err: e}))
+	}
+	// Remove testfile
+	if e := tsfio.RemoveFile(testfile); e != nil {
+		t.Error(tserr.Op(&tserr.OpArgs{Op: "Remove", Fn: string(testfile), Err: e}))
 	}
 }
