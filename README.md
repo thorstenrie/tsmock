@@ -82,6 +82,43 @@ for s.Scan() {
 }
 ```
 
-
 ## Example
+
+```go
+package main
+
+import (
+	"bufio"
+	"context"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/thorstenrie/tsfio"
+	"github.com/thorstenrie/tsmock"
+)
+
+var (
+	filename = tsfio.Filename("test.txt")
+	contents = "Aragorn\nGandalf\nGimli\nLegolas\nGollum\n"
+)
+
+func main() {
+	tsfio.WriteStr(filename, contents)
+	f, _ := tsfio.OpenFile(filename)
+	stdin := tsmock.Stdin
+	stdin.Set(f)
+	stdin.Visibility(false)
+	stdin.Delay(time.Millisecond * 250)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	stdin.Run(ctx)
+	s := bufio.NewScanner(os.Stdin)
+	for s.Scan() {
+		fmt.Println(s.Text())
+	}
+	tsfio.RemoveFile(filename)
+}
+```
+[Go Playground](https://go.dev/play/p/c83SOLA4cKc)
 
