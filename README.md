@@ -110,15 +110,19 @@ func main() {
 	stdin.Set(f)
 	stdin.Visibility(false)
 	stdin.Delay(time.Millisecond * 250)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*999)
 	defer cancel()
 	stdin.Run(ctx)
 	s := bufio.NewScanner(os.Stdin)
 	for s.Scan() {
 		fmt.Println(s.Text())
 	}
+	if e := stdin.Err(); e != nil {
+		fmt.Println(e)
+	}
+	f.Close()
 	tsfio.RemoveFile(filename)
 }
 ```
-[Go Playground](https://go.dev/play/p/c83SOLA4cKc)
+[Go Playground](https://go.dev/play/p/nfksVqPNaCj)
 
