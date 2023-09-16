@@ -34,11 +34,11 @@ type MockStdin struct {
 
 var (
 	// Global mocked Stdin instance initialized to store the original os.Stdin to enable os.Stdin recovery and setting visibility of Stdin input to true.
-	Stdin = NewStdin()
+	Stdin = newStdin()
 )
 
 // Retrieve a new mocked Stdin instance. Visibility of stdin is set to true.
-func NewStdin() *MockStdin {
+func newStdin() *MockStdin {
 	// Retrieve a new mocked Stdin instance and set o to the original os.Stdin
 	r := &MockStdin{o: os.Stdin}
 	// Set visibility of stdin to true
@@ -113,7 +113,7 @@ func (stdin *MockStdin) Err() error {
 	return stdin.e.Get()
 }
 
-// Set sets the input of the mocked Stdin to in. If a previous mocked Stdin is still executed, Set returns an error.
+// Set sets the input of the mocked Stdin to in. If a previous mock run is still being executed, Set returns an error.
 func (stdin *MockStdin) Set(in *os.File) error {
 	// Return an error if in is nil
 	if in == nil {
