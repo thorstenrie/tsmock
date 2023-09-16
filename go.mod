@@ -1,6 +1,6 @@
 module github.com/thorstenrie/tsmock
 
-go 1.20
+go 1.21
 
 require (
 	github.com/thorstenrie/tserr v1.12.0
